@@ -2,8 +2,7 @@ import { ChatOpenAI } from "@langchain/openai";
 
 
 const model = new ChatOpenAI({
-  model: "nvidia/llama-3.3-nemotron-super-49b-v1.5",
-
+  model: process.env.NVIDIA_MODEL,
   apiKey: process.env.NVIDIA_API_KEY,
 
   configuration: {

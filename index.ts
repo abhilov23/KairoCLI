@@ -6,16 +6,13 @@ import model from "./model/model.js";
 // Prompts
 import systemPrompt from "./prompt/prompt.js";
 
-// Tools
-import { getTime } from "./tools/getTime.js";
-import { executeCommandTool } from "./tools/execCommand.js";
-import { currentDirectoryTool } from "./tools/currentDirectory.js";
-import { listDirectoryTool } from "./tools/listDirectory.js";
-import { readFileTool } from "./tools/readFile.js";
-import { searchTextTool } from "./tools/searchText.js";
-import { changeDirectoryTool } from "./tools/changeDirectory.js";
-import { writeFileTool } from "./tools/writeFile.js";
-import { replaceInFileTool } from "./tools/replaceInFile.js";
+import {
+  toolMap,
+  availableToolNames,
+  modelWithTools,
+  shouldDisplayRawOutput
+} from "./core/toolRegistory.js";
+
 
 // UI
 import {
@@ -33,34 +30,8 @@ import {
 
 const prompt = promptSync();
 
-const modelWithTools = model.bindTools([
-  getTime,
-  executeCommandTool,
-  currentDirectoryTool,
-  listDirectoryTool,
-  readFileTool,
-  searchTextTool,
-  changeDirectoryTool,
-  writeFileTool,
-  replaceInFileTool,
-]);
 
-const availableToolNames = [
-  "get_time",
-  "execute_command",
-  "current_directory",
-  "list_directory",
-  "read_file",
-  "search_text",
-  "change_directory",
-  "write_file",
-  "replace_in_file",
-];
 
-const shouldDisplayRawOutput = [
-  "execute_command",
-  "list_directory",
-];
 
 function isToolListQuestion(input: string) {
   const normalized = input.toLowerCase();
@@ -76,17 +47,6 @@ function isToolListQuestion(input: string) {
 
 const messages: BaseMessage[] = [systemPrompt];
 
-const toolMap = {
-  get_time: getTime,
-  execute_command: executeCommandTool,
-  current_directory: currentDirectoryTool,
-  list_directory: listDirectoryTool,
-  read_file: readFileTool,
-  search_text: searchTextTool,
-  change_directory: changeDirectoryTool,
-  write_file: writeFileTool,
-  replace_in_file: replaceInFileTool,
-};
 
 async function invokeToolByName(
   name: keyof typeof toolMap,
