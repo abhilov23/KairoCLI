@@ -1,0 +1,27 @@
+{
+  "name": "20_streaming_chatbot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.33.4",
+  "dependencies": {
+    "@langchain/core": "^1.1.45",
+    "@langchain/openai": "^1.4.5",
+    "dotenv": "^17.4.2",
+    "langchain": "^1.4.0",
+    "prompt-sync": "^4.2.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.2",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  }
+}
