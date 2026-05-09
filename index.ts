@@ -14,6 +14,8 @@ import { listDirectoryTool } from "./tools/listDirectory.js";
 import { readFileTool } from "./tools/readFile.js";
 import { searchTextTool } from "./tools/searchText.js";
 import { changeDirectoryTool } from "./tools/changeDirectory.js";
+import { writeFileTool } from "./tools/writeFile.js";
+import { replaceInFileTool } from "./tools/replaceInFile.js";
 
 // UI
 import {
@@ -39,6 +41,8 @@ const modelWithTools = model.bindTools([
   readFileTool,
   searchTextTool,
   changeDirectoryTool,
+  writeFileTool,
+  replaceInFileTool,
 ]);
 
 const availableToolNames = [
@@ -49,6 +53,13 @@ const availableToolNames = [
   "read_file",
   "search_text",
   "change_directory",
+  "write_file",
+  "replace_in_file",
+];
+
+const shouldDisplayRawOutput = [
+  "execute_command",
+  "list_directory",
 ];
 
 function isToolListQuestion(input: string) {
@@ -65,9 +76,6 @@ function isToolListQuestion(input: string) {
 
 const messages: BaseMessage[] = [systemPrompt];
 
-let currentWorkingDirectory = process.cwd();
-
-
 const toolMap = {
   get_time: getTime,
   execute_command: executeCommandTool,
@@ -76,7 +84,62 @@ const toolMap = {
   read_file: readFileTool,
   search_text: searchTextTool,
   change_directory: changeDirectoryTool,
+  write_file: writeFileTool,
+  replace_in_file: replaceInFileTool,
 };
+
+async function invokeToolByName(
+  name: keyof typeof toolMap,
+  args: unknown
+) {
+  const tool = toolMap[name];
+
+  if (!tool) {
+    throw new Error(
+      `Unknown tool: ${name}`
+    );
+  }
+
+  return tool.invoke(args as never);
+}
+
+function extractInlineToolCall(raw: string): {
+  name: string;
+  parameters: Record<string, unknown>;
+} | null {
+  const text = raw.trim();
+
+  if (
+    !text.startsWith("{") ||
+    !text.endsWith("}")
+  ) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(text) as {
+      name?: string;
+      parameters?: Record<
+        string,
+        unknown
+      >;
+    };
+
+    if (
+      !parsed.name ||
+      !parsed.parameters
+    ) {
+      return null;
+    }
+
+    return {
+      name: parsed.name,
+      parameters: parsed.parameters,
+    };
+  } catch {
+    return null;
+  }
+}
 
 printBanner();
 
@@ -85,78 +148,166 @@ async function main() {
     try {
       const input = prompt("You > ");
 
-      if (!input.trim()) continue;
-
-      if (input === "exit") break;
-
-      if (input === "/tools" || isToolListQuestion(input)) {
-        console.log("\nAvailable Tools:");
-        console.log(availableToolNames.join("\n"));
+      if (!input.trim()) {
         continue;
       }
 
+      // EXIT
+      if (input === "exit") {
+        break;
+      }
+
+      // SHOW TOOLS
+      if (
+        input === "/tools" ||
+        isToolListQuestion(input)
+      ) {
+        console.log(
+          "\nAvailable Tools:"
+        );
+
+        console.log(
+          availableToolNames.join("\n")
+        );
+
+        continue;
+      }
+
+      // CLEAR MEMORY
       if (input === "/clear") {
         messages.length = 1;
 
-        printAssistant("Memory cleared.");
+        printAssistant(
+          "Memory cleared."
+        );
 
         continue;
       }
 
-      messages.push(new HumanMessage(input));
+      messages.push(
+        new HumanMessage(input)
+      );
 
-      const response = await modelWithTools.invoke(messages);
+      let response =
+        await modelWithTools.invoke(
+          messages
+        );
 
-      messages.push(response);
+      while (true) {
+        messages.push(response);
 
-      // IF NO TOOL CALLS THEN
-      if (!response.tool_calls?.length) {
-        printAssistant(response.content.toString());
+        // NO TOOL CALL
+        if (
+          !response.tool_calls?.length
+        ) {
+          const inlineToolCall =
+            extractInlineToolCall(
+              response.content.toString()
+            );
 
-        continue;
-      }
+          // INLINE TOOL CALL
+          if (inlineToolCall) {
+            const selectedTool =
+              toolMap[
+                inlineToolCall.name as keyof typeof toolMap
+              ];
 
-      // IF TOOL CALL then HANDLE TOOL CALLS
-      for (const toolCall of response.tool_calls) {
+            if (selectedTool) {
+              printTool(
+                inlineToolCall.name
+              );
+
+              const toolResult =
+                await invokeToolByName(
+                  inlineToolCall.name as keyof typeof toolMap,
+                  inlineToolCall.parameters
+                );
+
+              if (
+                shouldDisplayRawOutput.includes(
+                  inlineToolCall.name
+                )
+              ) {
+                console.log(
+                  toolResult
+                );
+              }
+
+              messages.push(
+                new ToolMessage({
+                  tool_call_id:
+                    `inline_${Date.now()}`,
+
+                  content:
+                    String(toolResult),
+                })
+              );
+
+              response =
+                await modelWithTools.invoke(
+                  messages
+                );
+
+              continue;
+            }
+          }
+
+          // FINAL RESPONSE
+          printAssistant(
+            response.content.toString()
+          );
+
+          break;
+        }
+
+        // SINGLE TOOL CALL
+        const toolCall =
+          response.tool_calls[0];
+
+        if (!toolCall) {
+          break;
+        }
+
         const selectedTool =
           toolMap[
             toolCall.name as keyof typeof toolMap
           ];
 
-        if (!selectedTool) continue;
+        if (!selectedTool) {
+          break;
+        }
 
         printTool(toolCall.name);
 
-        const toolResult = await selectedTool.invoke(
-          toolCall.args
-        );
+        const toolResult =
+          await invokeToolByName(
+            toolCall.name as keyof typeof toolMap,
+            toolCall.args
+          );
 
-        if (toolCall.name === "change_directory") {
-         currentWorkingDirectory = toolResult;
-
-           printAssistant(
-            `Changed directory to:\n${currentWorkingDirectory}`
-           );
-             continue;
+        if (
+          shouldDisplayRawOutput.includes(
+            toolCall.name
+          )
+        ) {
+          console.log(toolResult);
         }
 
         messages.push(
           new ToolMessage({
-            tool_call_id: toolCall.id!,
-            content: String(toolResult),
+            tool_call_id:
+              toolCall.id!,
+
+            content:
+              String(toolResult),
           })
         );
+
+        response =
+          await modelWithTools.invoke(
+            messages
+          );
       }
-
-      // FINAL RESPONSE AFTER TOOL EXECUTION
-      const finalResponse =
-        await modelWithTools.invoke(messages);
-
-      printAssistant(
-        finalResponse.content.toString()
-      );
-
-      messages.push(finalResponse);
     } catch (error) {
       printError(String(error));
     }

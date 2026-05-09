@@ -3,7 +3,7 @@ import boxen from "boxen";
 
 export function printBanner() {
   const banner = boxen(
-    chalk.cyan.bold("Shell Copilot"),
+    chalk.cyan.bold("ByteShell Copilot"),
     {
       padding: 1,
       borderColor: "cyan",
