@@ -1,86 +1,38 @@
-# Terminal Agent AI
+# 20_streaming_chatbot
 
-## About This Project
-This project is a streaming chatbot application powered by Langchain and OpenAI integrations. It features a TypeScript-based architecture with a focus on modular design for extensible AI interactions.
+A Node.js streaming chatbot application using TypeScript, LangChain, and OpenAI integrations.
 
-## Key Features
+## Features
 - Real-time streaming chat interface
-- OpenAI model integration
-- Environment configuration via `.env`
-- TypeScript typing system
+- Integration with OpenAI models
+- TypeScript-based architecture
+- Environment configuration support (.env)
 - Modular component structure
-- ScaliaNLP model handling
 
-## Getting Started
-### Prerequisites
-1. Node.js (16.x or higher)
-2. npm or pnpm package manager
-3. OpenAI API key
-4. Python 3.8+ (for model dependencies)
+## Installation
+1. Clone the repository
+2. Install dependencies:
+   ```
+   pnpm install
+   ```
 
-### Installation
-```bash
-# Install dependencies
-pnpm install
-
-# Copy environment template
-cp .env.example .env
-
-# Build project
-pnpm build
-```
-
-### Configuration
-Update the `.env` file with your OpenAI API key:
-```env
-OPENAI_API_KEY=your_api_key_here
-MODEL_ENGINE=openai
-```
+## Running the Application
+1. Ensure environment variables are set in `.env`
+2. Build the application:
+   ```
+   pnpm build
+   ```
+3. Start the chatbot:
+   ```
+   pnpm start
+   ```
 
 ## Project Structure
 ```
-src/                # Source code directory
-├─ index.ts          # Main application entry point
-├─ model/            # Model handling utilities
-├─ prompt/           # Prompt templates and management
-├─ tools/            # Utility scripts
-├─ types/            # TypeScript type definitions
-├─ ui/               # Web interface components
-.config/             # Configuration files
-├─ tsconfig.json      # TypeScript configuration
-├─ .env               # Environment variables
+src/            # Source code
+model/           # Model definitions
+prompt/          # Prompt templates
+ui/              # User interface components
+package.json     # Project metadata
+README.md        # This documentation
 ```
-
-## Dependencies
-**Core Dependencies:**
-- @langchain/core@^1.1.45
-- @langchain/openai@^1.4.5
-- boxen@^8.0.1
-- chalk@^5.6.2
-- dotenv@^17.4.2
-- prompt-sync@^4.2.0
-
-**Development Dependencies:**
-- @types/node@^25.6.2
-- tsx@^4.21.0
-- typescript@^6.0.3
-
-## Running the Application
-```bash
-# Start development server
-pnpm start
-
-# Build production version
-pnpm build
-```
-
-## License
-ISC License
-
-## Contributing
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Submit a pull request
-
-All contributions must comply with the LICENSE and CONTRIBUTING guidelines.
