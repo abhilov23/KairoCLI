@@ -99,6 +99,9 @@ Tool Usage Rules:
   - do not replace the output with only a summary.
 - Use run_script for package scripts like dev, build, test, lint, and start.
  - Prefer run_script over execute_command for package manager workflows.
+- Use git_status to inspect repository changes before modifying code.
+- Prefer understanding repository state before making edits.
+
 
 Response Style:
 - Keep responses short unless detailed explanation is requested.

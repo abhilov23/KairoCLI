@@ -9,6 +9,7 @@ import { changeDirectoryTool } from "../tools/changeDirectory.js";
 import { writeFileTool } from "../tools/writeFile.js";
 import { replaceInFileTool } from "../tools/replaceInFile.js";
 import { runScriptTool } from "../tools/runScript.js";
+import { gitStatusTool } from "./gitStatus.js";
 
 import model from "../model/model.js";
 
@@ -23,6 +24,7 @@ const tools = [
   writeFileTool,
   replaceInFileTool,
   runScriptTool,
+  gitStatusTool,
 ];
 
 const modelWithTools = model.bindTools(tools);
@@ -38,6 +40,7 @@ const availableToolNames = Object.freeze([
   "write_file",
   "replace_in_file",
   "run_script",
+  "git_status",
 ]);
 
 const toolMap: Record<string, any> = Object.freeze({
@@ -51,11 +54,15 @@ const toolMap: Record<string, any> = Object.freeze({
   write_file: writeFileTool,
   replace_in_file: replaceInFileTool,
   run_script: runScriptTool,
+  git_status: gitStatusTool,
 });
 
 const shouldDisplayRawOutput = Object.freeze([
   "execute_command",
   "list_directory",
+  "read_file",
+  "search_text",
+  "git_status",
 ]);
 
 export {
