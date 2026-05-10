@@ -39,6 +39,48 @@ const prompt = promptSync();
 
 const messages: BaseMessage[] = [systemPrompt];
 
+async function streamAssistantResponse(
+  history: BaseMessage[],
+  render = true
+) {
+  const stream = await modelWithTools.stream(history);
+  let mergedChunk: any = null;
+  let printedPrefix = false;
+
+  for await (const chunk of stream) {
+    mergedChunk = mergedChunk ? mergedChunk.concat(chunk) : chunk;
+
+    const piece =
+      typeof chunk.content === "string"
+        ? chunk.content
+        : Array.isArray(chunk.content)
+          ? chunk.content
+              .map((part) =>
+                typeof part === "string"
+                  ? part
+                  : "text" in part && typeof part.text === "string"
+                    ? part.text
+                    : ""
+              )
+              .join("")
+          : "";
+
+    if (render && piece) {
+      if (!printedPrefix) {
+        process.stdout.write("\nAI > ");
+        printedPrefix = true;
+      }
+      process.stdout.write(piece);
+    }
+  }
+
+  if (render && printedPrefix) {
+    process.stdout.write("\n");
+  }
+
+  return mergedChunk;
+}
+
 export async function startAgent() {
   printBanner();
 
@@ -58,7 +100,7 @@ export async function startAgent() {
 
       messages.push(new HumanMessage(input));
 
-      let response = await modelWithTools.invoke(messages);
+      let response = await streamAssistantResponse(messages);
 
       while (true) {
         messages.push(response);
@@ -136,14 +178,16 @@ export async function startAgent() {
                 })
               );
 
-              response = await modelWithTools.invoke(messages);
+              response = await streamAssistantResponse(messages);
 
               continue;
             }
           }
 
           // FINAL RESPONSE
-          printAssistant(response.content.toString());
+          if (response.content?.toString().trim()) {
+            printAssistant(response.content.toString());
+          }
 
           break;
         }
@@ -220,7 +264,7 @@ export async function startAgent() {
           })
         );
 
-        response = await modelWithTools.invoke(messages);
+        response = await streamAssistantResponse(messages);
       }
     } catch (error) {
       printError(String(error));
