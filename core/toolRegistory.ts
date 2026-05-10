@@ -11,6 +11,7 @@ import { replaceInFileTool } from "../tools/replaceInFile.js";
 import { runScriptTool } from "../tools/runScript.js";
 import { gitStatusTool } from "./gitStatus.js";
 import { gitDiffTool } from "../tools/gitDiff.js";
+import { diffPreviewTool } from "../tools/diffPreview.js";
 
 
 
@@ -29,6 +30,7 @@ const tools = [
   runScriptTool,
   gitStatusTool,
   gitDiffTool,
+  diffPreviewTool,
 ];
 
 const modelWithTools = model.bindTools(tools);
@@ -46,6 +48,7 @@ const availableToolNames = Object.freeze([
   "run_script",
   "git_status",
   "git_diff",
+  "diff_preview",
 ]);
 
 const toolMap: Record<string, any> = Object.freeze({
@@ -61,6 +64,7 @@ const toolMap: Record<string, any> = Object.freeze({
   run_script: runScriptTool,
   git_status: gitStatusTool,
   git_diff: gitDiffTool,
+  diff_preview: diffPreviewTool,
 });
 
 const shouldDisplayRawOutput = Object.freeze([
@@ -70,6 +74,7 @@ const shouldDisplayRawOutput = Object.freeze([
   "search_text",
   "git_status",
   "git_diff",
+  "diff_preview",
 ]);
 
 export {
