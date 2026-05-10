@@ -79,7 +79,9 @@ export async function startAgent() {
 
               // SAFETY CHECKS
               if (inlineToolCall.name === "execute_command") {
-                const command = String(inlineToolCall.parameters.command);
+                const command = String(
+                  inlineToolCall.parameters.command ?? ""
+                );
 
                 const dangerous = isDangerousCommand(command);
 
@@ -163,7 +165,7 @@ export async function startAgent() {
 
         // SAFETY CHECKS
         if (toolCall.name === "execute_command") {
-          const command = String(toolCall.args.command);
+          const command = String(toolCall.args.command ?? "");
 
           const dangerous = isDangerousCommand(command);
 
@@ -184,7 +186,7 @@ export async function startAgent() {
           toolCall.name === "write_file" ||
           toolCall.name === "replace_in_file"
         ) {
-          const filePath = String(toolCall.args.filePath);
+          const filePath = String(toolCall.args.filePath ?? "");
 
           const protectedFile = isProtectedFile(filePath);
 
