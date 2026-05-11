@@ -16,7 +16,7 @@ It is evolving toward a runtime-oriented coding agent architecture with:
 https://github.com/user-attachments/assets/video
 
 <video
-  src="https://github.com/abhilov23/KairoCLI/raw/main/demo/video.mp4"
+  src="https://github.com/abhilov23/KairoCLI/demo/video.mp4"
   controls
   width="100%">
 </video>
