@@ -27,7 +27,7 @@ export async function getModel() {
   if (!config) {
 
     throw new Error(
-      "No configuration found.\nRun: terminal-agent setup"
+      "No configuration found.\nRun: kairo setup"
     );
   }
 

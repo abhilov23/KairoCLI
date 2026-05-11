@@ -1,5 +1,5 @@
 {
-  "name": "20_streaming_chatbot",
+  "name": "@abhilov/kairo",
   "version": "1.0.0",
   "description": "",
   "main": "./dist/index.js",
@@ -40,7 +40,7 @@
     "typescript": "^6.0.3"
   },
   "bin": {
-    "terminal-agent": "./dist/index.js"
+    "kairo": "./dist/index.js"
   },
   "files": [
     "dist",

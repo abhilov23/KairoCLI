@@ -1,0 +1,195 @@
+import promptSync from "prompt-sync";
+// Prompts
+import systemPrompt from "../prompt/prompt.js";
+import { isDangerousCommand, askConfirmation, isProtectedFile, } from "./safety.js";
+import { toolMap, shouldDisplayRawOutput, tools } from "./toolRegistry.js";
+import { invokeToolByName } from "./toolExecutor.js";
+import { extractInlineToolCall } from "./inlineToolParser.js";
+import { handleInternalCommand } from "./commandRouter.js";
+import { loadMemory, saveMemory, } from "../memory/memoryManager.js";
+import { serializeMessages, deserializeMessages, } from "../memory/serializer.js";
+import { getModel } from "../providers/providerFactory.js";
+// UI
+import { printBanner, printAssistant, printTool, printError, } from "../ui/ui.js";
+import { HumanMessage, ToolMessage, } from "@langchain/core/messages";
+const prompt = promptSync();
+async function persistMemory(messages) {
+    const serialized = serializeMessages(messages);
+    await saveMemory(serialized);
+}
+async function streamAssistantResponse(modelWithTools, history, render = false) {
+    const stream = await modelWithTools.stream(history);
+    let mergedChunk = null;
+    let printedPrefix = false;
+    for await (const chunk of stream) {
+        mergedChunk = mergedChunk ? mergedChunk.concat(chunk) : chunk;
+        const piece = typeof chunk.content === "string"
+            ? chunk.content
+            : Array.isArray(chunk.content)
+                ? chunk.content
+                    .map((part) => typeof part === "string"
+                    ? part
+                    : typeof part === "object" &&
+                        part !== null &&
+                        "text" in part &&
+                        typeof part.text === "string"
+                        ? part.text
+                        : "")
+                    .join("")
+                : "";
+        if (render && piece) {
+            if (!printedPrefix) {
+                process.stdout.write("\nAI > ");
+                printedPrefix = true;
+            }
+            process.stdout.write(piece);
+        }
+    }
+    if (render && printedPrefix) {
+        process.stdout.write("\n");
+    }
+    return {
+        response: mergedChunk,
+        didStreamPrint: printedPrefix,
+    };
+}
+export async function startAgent() {
+    const model = await getModel();
+    const modelWithTools = model.bindTools(tools);
+    printBanner();
+    const storedMemory = await loadMemory();
+    const restoredMessages = deserializeMessages(storedMemory);
+    const messages = restoredMessages.length
+        ? restoredMessages
+        : [systemPrompt];
+    while (true) {
+        try {
+            const input = prompt("You > ");
+            if (!input.trim()) {
+                continue;
+            }
+            if (input === "exit") {
+                await persistMemory(messages);
+                break;
+            }
+            const handled = handleInternalCommand(input, messages);
+            if (handled) {
+                await persistMemory(messages);
+                continue;
+            }
+            messages.push(new HumanMessage(input));
+            let { response, didStreamPrint, } = await streamAssistantResponse(modelWithTools, messages);
+            while (true) {
+                messages.push(response);
+                // NO TOOL CALL
+                if (!response.tool_calls?.length) {
+                    const inlineToolCall = extractInlineToolCall(response.content.toString());
+                    // INLINE TOOL CALL
+                    if (inlineToolCall) {
+                        const selectedTool = toolMap[inlineToolCall.name];
+                        if (selectedTool) {
+                            printTool(inlineToolCall.name);
+                            // SAFETY CHECKS
+                            if (inlineToolCall.name === "execute_command") {
+                                const command = String(inlineToolCall.parameters.command ?? "");
+                                const dangerous = isDangerousCommand(command);
+                                if (dangerous) {
+                                    const confirmed = askConfirmation(`Dangerous command detected:\n${command}\nContinue?`);
+                                    if (!confirmed) {
+                                        printAssistant("Command cancelled.");
+                                        await persistMemory(messages);
+                                        break;
+                                    }
+                                }
+                            }
+                            if (inlineToolCall.name === "write_file" ||
+                                inlineToolCall.name === "replace_in_file") {
+                                const filePath = String(inlineToolCall.parameters.filePath);
+                                const protectedFile = isProtectedFile(filePath);
+                                if (protectedFile) {
+                                    const confirmed = askConfirmation(`Protected file detected:\n${filePath}\nContinue?`);
+                                    if (!confirmed) {
+                                        printAssistant("File operation cancelled.");
+                                        await persistMemory(messages);
+                                        break;
+                                    }
+                                }
+                            }
+                            const toolResult = await invokeToolByName(inlineToolCall.name, inlineToolCall.parameters);
+                            if (shouldDisplayRawOutput.includes(inlineToolCall.name)) {
+                                console.log(toolResult);
+                            }
+                            messages.push(new ToolMessage({
+                                tool_call_id: `inline_${Date.now()}`,
+                                content: String(toolResult),
+                            }));
+                            ({
+                                response,
+                                didStreamPrint,
+                            } = await streamAssistantResponse(modelWithTools, messages));
+                            continue;
+                        }
+                    }
+                    // FINAL RESPONSE
+                    if (!didStreamPrint &&
+                        response.content?.toString().trim()) {
+                        printAssistant(response.content.toString());
+                    }
+                    break;
+                }
+                // SINGLE TOOL CALL
+                const toolCall = response.tool_calls[0];
+                if (!toolCall) {
+                    break;
+                }
+                const selectedTool = toolMap[toolCall.name];
+                if (!selectedTool) {
+                    break;
+                }
+                printTool(toolCall.name);
+                // SAFETY CHECKS
+                if (toolCall.name === "execute_command") {
+                    const command = String(toolCall.args.command ?? "");
+                    const dangerous = isDangerousCommand(command);
+                    if (dangerous) {
+                        const confirmed = askConfirmation(`Dangerous command detected:\n${command}\nContinue?`);
+                        if (!confirmed) {
+                            printAssistant("Command cancelled.");
+                            await persistMemory(messages);
+                            break;
+                        }
+                    }
+                }
+                if (toolCall.name === "write_file" ||
+                    toolCall.name === "replace_in_file") {
+                    const filePath = String(toolCall.args.filePath ?? "");
+                    const protectedFile = isProtectedFile(filePath);
+                    if (protectedFile) {
+                        const confirmed = askConfirmation(`Protected file detected:\n${filePath}\nContinue?`);
+                        if (!confirmed) {
+                            printAssistant("File operation cancelled.");
+                            await persistMemory(messages);
+                            break;
+                        }
+                    }
+                }
+                const toolResult = await invokeToolByName(toolCall.name, toolCall.args);
+                if (shouldDisplayRawOutput.includes(toolCall.name)) {
+                    console.log(toolResult);
+                }
+                messages.push(new ToolMessage({
+                    tool_call_id: toolCall.id,
+                    content: String(toolResult),
+                }));
+                ({
+                    response,
+                    didStreamPrint,
+                } = await streamAssistantResponse(modelWithTools, messages));
+            }
+            await persistMemory(messages);
+        }
+        catch (error) {
+            printError(String(error));
+        }
+    }
+}

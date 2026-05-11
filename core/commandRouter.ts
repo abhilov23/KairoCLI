@@ -26,5 +26,11 @@ export function handleInternalCommand(
     return true;
   }
 
+  // CLEAR SCREEN
+  if (input === "clear" || input === "cls") {
+    console.clear();
+    return true;
+  }
+
   return false;
 }

@@ -2,7 +2,7 @@ import chalk from "chalk";
 import boxen from "boxen";
 
 export function printBanner() {
-  const banner = boxen(chalk.cyan.bold("ByteShell Copilot"), {
+  const banner = boxen(chalk.cyan.bold("KairoCLI"), {
     padding: 1,
     borderColor: "cyan",
     borderStyle: "round",

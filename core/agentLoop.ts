@@ -61,7 +61,7 @@ async function persistMemory(messages: BaseMessage[]) {
 async function streamAssistantResponse(
   modelWithTools: any,
   history: BaseMessage[],
-  render = true
+  render = false
 ) {
   const stream = await modelWithTools.stream(history);
   let mergedChunk: any = null;
@@ -101,7 +101,10 @@ async function streamAssistantResponse(
     process.stdout.write("\n");
   }
 
-  return mergedChunk;
+  return {
+    response: mergedChunk,
+    didStreamPrint: printedPrefix,
+  };
 }
 
 export async function startAgent() {
@@ -150,7 +153,10 @@ const messages: BaseMessage[] =
 
       messages.push(new HumanMessage(input));
 
-      let response = await streamAssistantResponse(modelWithTools, messages);
+      let {
+        response,
+        didStreamPrint,
+      } = await streamAssistantResponse(modelWithTools, messages);
 
       while (true) {
         messages.push(response);
@@ -218,7 +224,11 @@ const messages: BaseMessage[] =
                 inlineToolCall.parameters
               );
 
-              if (shouldDisplayRawOutput.includes(inlineToolCall.name)) {
+              if (
+                (shouldDisplayRawOutput as readonly string[]).includes(
+                  inlineToolCall.name
+                )
+              ) {
                 console.log(toolResult);
               }
 
@@ -230,14 +240,20 @@ const messages: BaseMessage[] =
                 })
               );
 
-              response = await streamAssistantResponse(modelWithTools, messages);
+              ({
+                response,
+                didStreamPrint,
+              } = await streamAssistantResponse(modelWithTools, messages));
 
               continue;
             }
           }
 
           // FINAL RESPONSE
-          if (response.content?.toString().trim()) {
+          if (
+            !didStreamPrint &&
+            response.content?.toString().trim()
+          ) {
             printAssistant(response.content.toString());
           }
 
@@ -306,7 +322,11 @@ const messages: BaseMessage[] =
           toolCall.args
         );
 
-        if (shouldDisplayRawOutput.includes(toolCall.name)) {
+        if (
+          (shouldDisplayRawOutput as readonly string[]).includes(
+            toolCall.name
+          )
+        ) {
           console.log(toolResult);
         }
 
@@ -318,7 +338,10 @@ const messages: BaseMessage[] =
           })
         );
 
-        response = await streamAssistantResponse(modelWithTools, messages);
+        ({
+          response,
+          didStreamPrint,
+        } = await streamAssistantResponse(modelWithTools, messages));
       }
 
       await persistMemory(messages);

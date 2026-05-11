@@ -12,7 +12,7 @@ const prompt = promptSync();
 export async function runSetup() {
 
   console.log(
-    "\nTerminal Agent Setup\n"
+    "\nKairoCLI Setup\n"
   );
 
   console.log(

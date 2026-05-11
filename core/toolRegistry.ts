@@ -65,13 +65,13 @@ const toolMap: Record<string, any> = Object.freeze({
 });
 
 const shouldDisplayRawOutput = Object.freeze([
-  "execute_command",
-  "list_directory",
-  "read_file",
-  "search_text",
-  "git_status",
-  "git_diff",
-  "diff_preview",
+ // "execute_command",
+ // "list_directory",
+ // "read_file",
+ // "search_text",
+ // "git_status",
+ // "git_diff",
+ // "diff_preview",
 ]);
 
 export {
