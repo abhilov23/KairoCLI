@@ -16,4 +16,4 @@ COPY . .
 #building typescript
 RUN pnpm tsc 
 
-CMD [ "pnpm", "tsx", "index.ts" ]
+CMD [ "node", "dist/index.js" ]

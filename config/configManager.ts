@@ -1,8 +1,8 @@
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
-// Loading and creating the config file for the Module setup
 
+// Loading and creating the config file for the module setup
 
 const CONFIG_DIR = path.join(
   os.homedir(),
@@ -14,9 +14,28 @@ const CONFIG_FILE = path.join(
   "config.json"
 );
 
+export type ProviderName =
+  | "nvidia"
+  | "openai"
+  | "anthropic"
+  | "ollama"
+  | "groq";
+
+export type ProviderConfig = {
+  apiKey?: string;
+  baseURL?: string;
+  model: string;
+};
+
 export type AgentConfig = {
-  provider: string;
-  apiKey: string;
+  activeProvider: ProviderName;
+
+  providers: Partial<
+    Record<
+      ProviderName,
+      ProviderConfig
+    >
+  >;
 };
 
 export async function saveConfig(
@@ -32,6 +51,7 @@ export async function saveConfig(
 
   await fs.writeFile(
     CONFIG_FILE,
+
     JSON.stringify(
       config,
       null,

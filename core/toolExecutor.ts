@@ -1,4 +1,4 @@
-import { toolMap } from "./toolRegistory.js";
+import { toolMap } from "./toolRegistry.js";
 
 export async function invokeToolByName(
   name: keyof typeof toolMap,

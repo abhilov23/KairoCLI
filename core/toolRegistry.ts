@@ -15,7 +15,6 @@ import { diffPreviewTool } from "../tools/diffPreview.js";
 
 
 
-import model from "../model/model.js";
 
 const tools = [
   getTime,
@@ -32,8 +31,6 @@ const tools = [
   gitDiffTool,
   diffPreviewTool,
 ];
-
-const modelWithTools = model.bindTools(tools);
 
 const availableToolNames = Object.freeze([
   "get_time",
@@ -78,7 +75,6 @@ const shouldDisplayRawOutput = Object.freeze([
 ]);
 
 export {
-  modelWithTools,
   availableToolNames,
   toolMap,
   shouldDisplayRawOutput,

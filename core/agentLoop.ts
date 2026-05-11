@@ -11,9 +11,9 @@ import {
 
 import {
   toolMap,
-  modelWithTools,
   shouldDisplayRawOutput,
-} from "./toolRegistory.js";
+  tools
+} from "./toolRegistry.js";
 
 import { invokeToolByName } from "./toolExecutor.js";
 
@@ -31,6 +31,8 @@ import {
   deserializeMessages,
 } from "../memory/serializer.js";
 
+
+import { getModel } from "../providers/providerFactory.js";
 
 
 
@@ -57,6 +59,7 @@ async function persistMemory(messages: BaseMessage[]) {
 
 
 async function streamAssistantResponse(
+  modelWithTools: any,
   history: BaseMessage[],
   render = true
 ) {
@@ -72,11 +75,14 @@ async function streamAssistantResponse(
         ? chunk.content
         : Array.isArray(chunk.content)
           ? chunk.content
-              .map((part) =>
+              .map((part: unknown) =>
                 typeof part === "string"
                   ? part
-                  : "text" in part && typeof part.text === "string"
-                    ? part.text
+                  : typeof part === "object" &&
+                      part !== null &&
+                      "text" in part &&
+                      typeof (part as { text?: unknown }).text === "string"
+                    ? (part as { text: string }).text
                     : ""
               )
               .join("")
@@ -99,6 +105,10 @@ async function streamAssistantResponse(
 }
 
 export async function startAgent() {
+  
+  const model = await getModel();
+  const modelWithTools = model.bindTools(tools);
+
   printBanner();
    
   const storedMemory =
@@ -140,7 +150,7 @@ const messages: BaseMessage[] =
 
       messages.push(new HumanMessage(input));
 
-      let response = await streamAssistantResponse(messages);
+      let response = await streamAssistantResponse(modelWithTools, messages);
 
       while (true) {
         messages.push(response);
@@ -220,7 +230,7 @@ const messages: BaseMessage[] =
                 })
               );
 
-              response = await streamAssistantResponse(messages);
+              response = await streamAssistantResponse(modelWithTools, messages);
 
               continue;
             }
@@ -308,7 +318,7 @@ const messages: BaseMessage[] =
           })
         );
 
-        response = await streamAssistantResponse(messages);
+        response = await streamAssistantResponse(modelWithTools, messages);
       }
 
       await persistMemory(messages);

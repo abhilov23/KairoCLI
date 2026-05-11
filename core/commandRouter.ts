@@ -1,4 +1,4 @@
-import { availableToolNames } from "./toolRegistory.js";
+import { availableToolNames } from "./toolRegistry.js";
 
 import { printAssistant } from "../ui/ui.js";
 

@@ -1,7 +1,13 @@
 import fs from "fs/promises";
+import path from "path";
+import os from "os";
 
 const MEMORY_FILE =
-  "./memory/history.json";
+  path.join(
+    os.homedir(),
+    ".terminal-agent",
+    "history.json"
+  );
 
 export type StoredMessage = {
   role:
@@ -35,6 +41,10 @@ export async function loadMemory():
 export async function saveMemory(
   messages: StoredMessage[]
 ) {
+  await fs.mkdir(
+    path.dirname(MEMORY_FILE),
+    { recursive: true }
+  );
 
   await fs.writeFile(
     MEMORY_FILE,
