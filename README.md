@@ -19,7 +19,7 @@ pnpm install
 ## Setup
 
 ```bash
-pnpm setup
+pnpm run setup
 ```
 
 Or after global link:
@@ -57,8 +57,17 @@ pnpm link --global
 kairo
 ```
 
+## CLI Commands
+
+- `kairo` start interactive assistant
+- `kairo setup` configure provider and model
+- `kairo doctor` run configuration health checks
+- `kairo help` show CLI help
+- `kairo version` show CLI version
+
 ## Internal Commands
 
+- `/help` show interactive command help
 - `/tools` show available tools
 - `/clear` clear conversation memory
 - `clear` or `cls` clear terminal screen

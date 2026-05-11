@@ -1,4 +1,5 @@
 import { availableToolNames } from "./toolRegistry.js";
+import { printInteractiveHelp } from "./cliCommands.js";
 
 import { printAssistant } from "../ui/ui.js";
 
@@ -8,6 +9,12 @@ export function handleInternalCommand(
   input: string,
   messages: BaseMessage[]
 ): boolean {
+  // HELP
+  if (input === "/help") {
+    printInteractiveHelp();
+    return true;
+  }
+
   // TOOLS
   if (input === "/tools") {
     console.log("\nAvailable Tools:");

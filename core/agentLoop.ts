@@ -22,14 +22,10 @@ import { extractInlineToolCall } from "./inlineToolParser.js";
 import { handleInternalCommand } from "./commandRouter.js";
 
 import {
-  loadMemory,
-  saveMemory,
-} from "../memory/memoryManager.js";
-
-import {
-  serializeMessages,
-  deserializeMessages,
-} from "../memory/serializer.js";
+  loadSessionMessages,
+  loadSessionState,
+  saveSessionMessages,
+} from "../runtime/sessionManager.js";
 
 
 import { getModel } from "../providers/providerFactory.js";
@@ -42,6 +38,7 @@ import {
   printAssistant,
   printTool,
   printError,
+  printSuccess,
 } from "../ui/ui.js";
 
 import {
@@ -52,9 +49,24 @@ import {
 
 const prompt = promptSync();
 
-async function persistMemory(messages: BaseMessage[]) {
-  const serialized = serializeMessages(messages);
-  await saveMemory(serialized);
+async function persistMemory(
+  messages: BaseMessage[],
+  turnCount: number,
+  lastToolName: string | null = null,
+  lastError: string | null = null
+) {
+  await saveSessionMessages(messages, {
+    execution: {
+      turnCount,
+      lastToolName,
+      lastError,
+      lastUpdatedAt: new Date().toISOString(),
+    },
+    workspace: {
+      cwd: process.cwd(),
+      lastUpdatedAt: new Date().toISOString(),
+    },
+  });
 }
 
 
@@ -113,19 +125,18 @@ export async function startAgent() {
   const modelWithTools = model.bindTools(tools);
 
   printBanner();
+  printSuccess("Type /help for commands. Type exit to quit.");
    
-  const storedMemory =
-  await loadMemory();
+  const session = await loadSessionState();
+  const restoredMessages = await loadSessionMessages();
 
-const restoredMessages =
-  deserializeMessages(
-    storedMemory
-  );
-
-const messages: BaseMessage[] =
+  const messages: BaseMessage[] =
   restoredMessages.length
     ? restoredMessages
     : [systemPrompt];
+
+  let turnCount = session.execution.turnCount ?? 0;
+  let lastToolName: string | null = session.execution.lastToolName ?? null;
 
 
 
@@ -133,25 +144,27 @@ const messages: BaseMessage[] =
 
   while (true) {
     try {
-      const input = prompt("You > ");
+      const promptLabel = `You (${process.cwd()}) > `;
+      const input = prompt(promptLabel);
 
       if (!input.trim()) {
         continue;
       }
 
       if (input === "exit") {
-        await persistMemory(messages);
+        await persistMemory(messages, turnCount, lastToolName);
         break;
       }
 
       const handled = handleInternalCommand(input, messages);
 
       if (handled) {
-        await persistMemory(messages);
+        await persistMemory(messages, turnCount, lastToolName);
         continue;
       }
 
       messages.push(new HumanMessage(input));
+      turnCount += 1;
 
       let {
         response,
@@ -190,7 +203,7 @@ const messages: BaseMessage[] =
 
                   if (!confirmed) {
                     printAssistant("Command cancelled.");
-                    await persistMemory(messages);
+                    await persistMemory(messages, turnCount, lastToolName);
 
                     break;
                   }
@@ -212,7 +225,7 @@ const messages: BaseMessage[] =
 
                   if (!confirmed) {
                     printAssistant("File operation cancelled.");
-                    await persistMemory(messages);
+                    await persistMemory(messages, turnCount, lastToolName);
 
                     break;
                   }
@@ -223,6 +236,7 @@ const messages: BaseMessage[] =
                 inlineToolCall.name as keyof typeof toolMap,
                 inlineToolCall.parameters
               );
+              lastToolName = inlineToolCall.name;
 
               if (
                 (shouldDisplayRawOutput as readonly string[]).includes(
@@ -288,7 +302,7 @@ const messages: BaseMessage[] =
 
             if (!confirmed) {
               printAssistant("Command cancelled.");
-              await persistMemory(messages);
+              await persistMemory(messages, turnCount, lastToolName);
 
               break;
             }
@@ -310,7 +324,7 @@ const messages: BaseMessage[] =
 
             if (!confirmed) {
               printAssistant("File operation cancelled.");
-              await persistMemory(messages);
+              await persistMemory(messages, turnCount, lastToolName);
 
               break;
             }
@@ -321,6 +335,7 @@ const messages: BaseMessage[] =
           toolCall.name as keyof typeof toolMap,
           toolCall.args
         );
+        lastToolName = toolCall.name;
 
         if (
           (shouldDisplayRawOutput as readonly string[]).includes(
@@ -344,8 +359,9 @@ const messages: BaseMessage[] =
         } = await streamAssistantResponse(modelWithTools, messages));
       }
 
-      await persistMemory(messages);
+      await persistMemory(messages, turnCount, lastToolName);
     } catch (error) {
+      await persistMemory(messages, turnCount, lastToolName, String(error));
       printError(String(error));
     }
   }

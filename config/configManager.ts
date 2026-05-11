@@ -14,6 +14,14 @@ const CONFIG_FILE = path.join(
   "config.json"
 );
 
+export function getConfigDir(): string {
+  return CONFIG_DIR;
+}
+
+export function getConfigFile(): string {
+  return CONFIG_FILE;
+}
+
 export type ProviderName =
   | "nvidia"
   | "openai"
