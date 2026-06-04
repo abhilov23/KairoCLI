@@ -1,6 +1,4 @@
-import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-
 import fs from "fs/promises";
 import path from "path";
 
@@ -16,19 +14,12 @@ async function searchInDirectory(
   searchText: string,
   results: SearchResult[] = []
 ): Promise<SearchResult[]> {
-  const entries = await fs.readdir(directory, {
-    withFileTypes: true,
-  });
+  const entries = await fs.readdir(directory, { withFileTypes: true });
 
   for (const entry of entries) {
     const fullPath = path.join(directory, entry.name);
 
-    // Ignore heavy folders
-    if (
-      fullPath.includes("node_modules") ||
-      fullPath.includes(".git") ||
-      fullPath.includes("dist")
-    ) {
+    if (fullPath.includes("node_modules") || fullPath.includes(".git") || fullPath.includes("dist")) {
       continue;
     }
 
@@ -37,17 +28,12 @@ async function searchInDirectory(
     } else {
       try {
         const content = await fs.readFile(fullPath, "utf-8");
-
         const lines = content.split("\n");
-
         lines.forEach((lineContent, index) => {
           if (lineContent.toLowerCase().includes(searchText.toLowerCase())) {
             const start = Math.max(0, index - 1);
-
             const end = Math.min(lines.length, index + 2);
-
             const context = lines.slice(start, end).join("\n");
-
             results.push({
               file: fullPath,
               line: index + 1,
@@ -65,47 +51,9 @@ async function searchInDirectory(
   return results;
 }
 
-export const searchTextTool = tool(
-  async ({ text, directory }) => {
-    const targetDir = directory?.trim()
-      ? path.resolve(directory)
-      : process.cwd();
-
-    const results = await searchInDirectory(targetDir, text);
-
-    if (!results.length) {
-      return `
-No matches found for:
-"${text}"
-`;
-    }
-
-    return results
-      .map(
-        (result) => `
-FILE:
-${result.file}
-
-LINE:
-${result.line}
-
-MATCH:
-${result.match}
-
-CONTEXT:
-${result.context}
-
-------------------------
-`
-      )
-      .join("\n");
-  },
-
-  {
-    name: "search_text",
-
-    description: `
-Search recursively for text inside files.
+export const searchText = {
+  name: "search_text",
+  description: `Search recursively for text inside files.
 
 Returns:
 - file path
@@ -118,13 +66,24 @@ Useful for:
 - tracing variables
 - exploring codebases
 - locating imports
-- debugging
-`,
+- debugging`,
+  parameters: z.object({
+    text: z.string().describe("Text to search for"),
+    directory: z.string().optional().describe("Directory to search in"),
+  }),
+  execute: async ({ text, directory }: { text: string; directory?: string }) => {
+    const targetDir = directory?.trim() ? path.resolve(directory) : process.cwd();
+    const results = await searchInDirectory(targetDir, text);
 
-    schema: z.object({
-      text: z.string().describe("Text to search for"),
+    if (!results.length) {
+      return `No matches found for:\n"${text}"\n`;
+    }
 
-      directory: z.string().optional().describe("Directory to search in"),
-    }),
-  }
-);
+    return results
+      .map(
+        (result) =>
+          `FILE:\n${result.file}\n\nLINE:\n${result.line}\n\nMATCH:\n${result.match}\n\nCONTEXT:\n${result.context}\n\n------------------------\n`
+      )
+      .join("\n");
+  },
+};

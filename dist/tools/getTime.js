@@ -1,9 +1,9 @@
-import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-export const getTime = tool(async () => {
-    return new Date().toString();
-}, {
+export const getTime = {
     name: "get_time",
     description: "Get current system time",
-    schema: z.object({}),
-});
+    parameters: z.object({}),
+    execute: async (_args) => {
+        return new Date().toString();
+    },
+};

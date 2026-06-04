@@ -1,5 +1,5 @@
-import promptSync from "prompt-sync";
 import path from "path";
+import { getUserInput } from "../ui/ui.js";
 
 const dangerousPatterns = [
   // Cross-platform destructive deletes
@@ -70,12 +70,9 @@ export function isProtectedFile(filePath: string): boolean {
   );
 }
 
-const prompt = promptSync();
-
-export function askConfirmation(message: string): boolean {
+export async function askConfirmation(message: string): Promise<boolean> {
   console.log(message);
-  const answer = prompt("Continue? (y/n): ");
-
+  const answer = await getUserInput("Continue? (y/n): ");
   const normalized = answer.trim().toLowerCase();
   return normalized === "y" || normalized === "yes";
 }

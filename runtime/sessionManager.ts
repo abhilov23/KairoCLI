@@ -3,14 +3,6 @@ import os from "os";
 import path from "path";
 
 import {
-  AIMessage,
-  BaseMessage,
-  HumanMessage,
-  SystemMessage,
-  ToolMessage,
-} from "@langchain/core/messages";
-
-import {
   TaskState,
   createInitialTaskState,
 } from "./taskState.js";
@@ -31,8 +23,10 @@ const SESSION_FILE = path.join(
 const MAX_STORED_MESSAGES = 200;
 
 export type StoredMessage = {
-  role: "system" | "user" | "assistant" | "tool";
+  role: string;
   content: string;
+  tool_calls?: unknown[];
+  tool_call_id?: string;
 };
 
 export type SessionState = {
@@ -42,46 +36,16 @@ export type SessionState = {
   workspace: WorkspaceState;
 };
 
-function serializeMessages(messages: BaseMessage[]): StoredMessage[] {
-  return messages.map((message) => {
-    if (message instanceof HumanMessage) {
-      return { role: "user", content: message.content.toString() };
-    }
-
-    if (message instanceof AIMessage) {
-      return { role: "assistant", content: message.content.toString() };
-    }
-
-    if (message instanceof SystemMessage) {
-      return { role: "system", content: message.content.toString() };
-    }
-
-    if (message instanceof ToolMessage) {
-      return { role: "tool", content: message.content.toString() };
-    }
-
-    return { role: "assistant", content: message.content.toString() };
-  });
-}
-
-function deserializeMessages(messages: StoredMessage[]): BaseMessage[] {
-  return messages.map((message) => {
-    switch (message.role) {
-      case "system":
-        return new SystemMessage(message.content);
-      case "user":
-        return new HumanMessage(message.content);
-      case "assistant":
-        return new AIMessage(message.content);
-      case "tool":
-        return new ToolMessage({
-          tool_call_id: "restored_tool",
-          content: message.content,
-        });
-      default:
-        return new HumanMessage(message.content);
-    }
-  });
+function serializeMessage(message: any): StoredMessage {
+  const content = typeof message.content === "string" ? message.content : JSON.stringify(message.content);
+  const base: StoredMessage = { role: message.role, content };
+  if (message.tool_calls) {
+    base.tool_calls = message.tool_calls;
+  }
+  if (message.tool_call_id) {
+    base.tool_call_id = message.tool_call_id;
+  }
+  return base;
 }
 
 function createInitialSessionState(): SessionState {
@@ -125,19 +89,19 @@ export async function loadSessionState(): Promise<SessionState> {
   }
 }
 
-export async function loadSessionMessages(): Promise<BaseMessage[]> {
+export async function loadSessionMessages(): Promise<any[]> {
   const session = await loadSessionState();
-  return deserializeMessages(session.messages);
+  return session.messages;
 }
 
 export async function saveSessionMessages(
-  messages: BaseMessage[],
+  messages: any[],
   patch?: Partial<Pick<SessionState, "task" | "execution" | "workspace">>
 ): Promise<void> {
   const previous = await loadSessionState();
   const next: SessionState = {
     ...previous,
-    messages: trimMessages(serializeMessages(messages)),
+    messages: trimMessages(messages.map(serializeMessage)),
     task: patch?.task ?? previous.task,
     execution: patch?.execution ?? previous.execution,
     workspace: patch?.workspace ?? previous.workspace,

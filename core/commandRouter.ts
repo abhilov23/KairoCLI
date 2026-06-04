@@ -1,13 +1,10 @@
-import { availableToolNames } from "./toolRegistry.js";
+import { registry } from "../tools/registry.js";
 import { printInteractiveHelp } from "./cliCommands.js";
-
-import { printAssistant } from "../ui/ui.js";
-
-import { BaseMessage } from "@langchain/core/messages";
+import type OpenAI from "openai";
 
 export function handleInternalCommand(
   input: string,
-  messages: BaseMessage[]
+  messages: OpenAI.ChatCompletionMessageParam[]
 ): boolean {
   // HELP
   if (input === "/help") {
@@ -18,18 +15,14 @@ export function handleInternalCommand(
   // TOOLS
   if (input === "/tools") {
     console.log("\nAvailable Tools:");
-
-    console.log(availableToolNames.join("\n"));
-
+    console.log(registry.list().join("\n"));
     return true;
   }
 
   // CLEAR
   if (input === "/clear") {
-    messages.length = 1;
-
-    printAssistant("Memory cleared.");
-
+    messages.length = 1; // Keep system prompt
+    console.log("\nMemory cleared.\n");
     return true;
   }
 

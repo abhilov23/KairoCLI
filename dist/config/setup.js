@@ -1,63 +1,76 @@
-import promptSync from "prompt-sync";
-import { saveConfig, loadConfig, } from "./configManager.js";
-const prompt = promptSync();
+import { saveConfig, loadConfigAsync } from "./configManager.js";
+import { getUserInput } from "../ui/ui.js";
+const PROVIDER_CHOICES = [
+    { key: "1", name: "openai", label: "OpenAI" },
+    { key: "2", name: "anthropic", label: "Anthropic" },
+    { key: "3", name: "groq", label: "Groq" },
+    { key: "4", name: "nvidia", label: "NVIDIA" },
+    { key: "5", name: "ollama", label: "Ollama" },
+    { key: "6", name: "custom", label: "Custom" },
+];
 export async function runSetup() {
     console.log("\nKairoCLI Setup\n");
-    console.log(`Select Provider:
-
-1. NVIDIA
-2. OpenAI
-3. Anthropic
-4. Ollama
-5. Groq
-`);
-    const providerChoice = prompt("Choice: ");
-    const providerMap = {
-        "1": "nvidia",
-        "2": "openai",
-        "3": "anthropic",
-        "4": "ollama",
-        "5": "groq",
-    };
-    const provider = providerMap[providerChoice];
-    if (!provider) {
+    const existingConfig = await loadConfigAsync();
+    // Provider selection
+    console.log("Select Provider:\n");
+    for (const c of PROVIDER_CHOICES) {
+        const marker = existingConfig?.provider === c.name ? " (current)" : "";
+        console.log(`  ${c.key}. ${c.label}${marker}`);
+    }
+    console.log("");
+    const providerChoice = await getUserInput("Choice: ");
+    const entry = PROVIDER_CHOICES.find((c) => c.key === providerChoice);
+    if (!entry) {
         console.log("\nInvalid provider.\n");
         return;
     }
-    let apiKey;
+    const provider = entry.name;
+    const isCustom = provider === "custom";
     let baseURL;
-    const model = prompt("\nEnter model name: ");
-    // OLLAMA DOES NOT NEED API KEY
-    if (provider !== "ollama") {
-        apiKey = prompt("Enter API Key: ");
+    let apiKey;
+    let model;
+    if (isCustom) {
+        // For custom provider, prompt for all three fields
+        baseURL = await getUserInput(`Enter your API base URL (e.g. https://api.linkapi.ai/v1)${existingConfig?.baseURL ? ` [${existingConfig.baseURL}]` : ""}: `);
+        if (!baseURL.trim() && existingConfig?.baseURL) {
+            baseURL = existingConfig.baseURL;
+        }
+        apiKey = await getUserInput(`Enter your API key${existingConfig?.apiKey ? " [stored]" : ""}: `);
+        if (!apiKey.trim() && existingConfig?.apiKey) {
+            apiKey = existingConfig.apiKey;
+        }
+        model = await getUserInput(`Enter the model name (e.g. gpt-4o)${existingConfig?.model ? ` [${existingConfig.model}]` : ""}: `);
+        if (!model.trim() && existingConfig?.model) {
+            model = existingConfig.model;
+        }
     }
-    // OPTIONAL BASE URL
-    const useCustomBaseURL = prompt("Custom Base URL? (y/n): ");
-    if (useCustomBaseURL
-        .toLowerCase() === "y") {
-        baseURL = prompt("Enter Base URL: ");
+    else {
+        // For standard providers, just prompt for model
+        model = await getUserInput(`Enter model name${existingConfig?.model ? ` [${existingConfig.model}]` : ""}: `);
+        if (!model.trim() && existingConfig?.model) {
+            model = existingConfig.model;
+        }
+        // Optional base URL override
+        const useCustomBaseURL = await getUserInput("Custom Base URL? (y/n): ");
+        if (useCustomBaseURL.toLowerCase() === "y") {
+            baseURL = await getUserInput(`Enter Base URL${existingConfig?.baseURL ? ` [${existingConfig.baseURL}]` : ""}: `);
+            if (!baseURL.trim() && existingConfig?.baseURL) {
+                baseURL = existingConfig.baseURL;
+            }
+        }
     }
-    // LOAD EXISTING CONFIG
-    const existingConfig = await loadConfig();
-    const updatedConfig = {
-        activeProvider: provider,
-        providers: {
-            ...(existingConfig?.providers ||
-                {}),
-            [provider]: {
-                apiKey,
-                baseURL,
-                model,
-            },
-        },
+    const config = {
+        provider,
+        ...(model ? { model } : {}),
+        ...(baseURL ? { baseURL } : {}),
+        ...(apiKey ? { apiKey } : {}),
     };
-    await saveConfig(updatedConfig);
-    console.log(`\nConfiguration saved successfully.
-
-Active Provider:
-${provider}
-
-Model:
-${model}
-`);
+    saveConfig(config);
+    console.log(`\nConfiguration saved successfully.\n`);
+    console.log(`Provider: ${provider}`);
+    if (model)
+        console.log(`Model: ${model}`);
+    if (baseURL)
+        console.log(`Base URL: ${baseURL}`);
+    console.log("");
 }

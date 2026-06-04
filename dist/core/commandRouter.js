@@ -1,16 +1,21 @@
-import { availableToolNames } from "./toolRegistry.js";
-import { printAssistant } from "../ui/ui.js";
+import { registry } from "../tools/registry.js";
+import { printInteractiveHelp } from "./cliCommands.js";
 export function handleInternalCommand(input, messages) {
+    // HELP
+    if (input === "/help") {
+        printInteractiveHelp();
+        return true;
+    }
     // TOOLS
     if (input === "/tools") {
         console.log("\nAvailable Tools:");
-        console.log(availableToolNames.join("\n"));
+        console.log(registry.list().join("\n"));
         return true;
     }
     // CLEAR
     if (input === "/clear") {
-        messages.length = 1;
-        printAssistant("Memory cleared.");
+        messages.length = 1; // Keep system prompt
+        console.log("\nMemory cleared.\n");
         return true;
     }
     // CLEAR SCREEN

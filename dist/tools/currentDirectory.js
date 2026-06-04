@@ -1,9 +1,9 @@
-import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-export const currentDirectoryTool = tool(async () => {
-    return process.cwd();
-}, {
+export const currentDirectory = {
     name: "current_directory",
     description: "Get the current working directory.",
-    schema: z.object({}),
-});
+    parameters: z.object({}),
+    execute: async () => {
+        return process.cwd();
+    },
+};
