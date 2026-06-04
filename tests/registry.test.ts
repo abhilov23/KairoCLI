@@ -43,4 +43,19 @@ describe("ToolRegistry", () => {
     const names = registry.list();
     expect(names).toContain("test_tool");
   });
+
+  it("should include type: 'object' for empty parameter schemas", () => {
+    registry.register({
+      name: "empty_params_tool",
+      description: "A tool with no parameters",
+      parameters: z.object({}),
+      execute: async () => "done",
+    });
+
+    const tools = registry.describe();
+    const tool = tools.find((t) => t.function.name === "empty_params_tool");
+
+    expect(tool).toBeDefined();
+    expect(tool!.function.parameters).toHaveProperty("type", "object");
+  });
 });

@@ -32,14 +32,21 @@ class ToolRegistry {
   }
 
   describe(): ToolDescription[] {
-    return Array.from(this.tools.values()).map((t) => ({
-      type: "function" as const,
-      function: {
-        name: t.name,
-        description: t.description,
-        parameters: zodToJsonSchema(t.parameters as any, { target: "openApi3" }) as Record<string, unknown>,
-      },
-    }));
+    return Array.from(this.tools.values()).map((t) => {
+      let params = zodToJsonSchema(t.parameters as any, { target: "openApi3" }) as Record<string, unknown>;
+      // OpenAI requires the parameters schema to have type: "object" at the top level
+      if (params && typeof params === "object" && params.type !== "object") {
+        params = { type: "object", properties: {}, ...params };
+      }
+      return {
+        type: "function" as const,
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: params as Record<string, unknown>,
+        },
+      };
+    });
   }
 
   list(): string[] {
