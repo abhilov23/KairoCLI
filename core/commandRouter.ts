@@ -1,14 +1,31 @@
 import { registry } from "../tools/registry.js";
 import { printInteractiveHelp } from "./cliCommands.js";
 import type OpenAI from "openai";
+import {loginCommand, whoamiCommand, logoutCommand} from "./login.js";
 
-export function handleInternalCommand(
+
+export async function handleInternalCommand(
   input: string,
   messages: OpenAI.ChatCompletionMessageParam[]
-): boolean {
+): Promise<boolean> {
   // HELP
   if (input === "/help") {
     printInteractiveHelp();
+    return true;
+  }
+
+  if(input === '/login'){
+   await loginCommand();
+    return true;
+  }
+
+  if(input === '/whoami'){
+   await whoamiCommand();
+    return true;
+  }
+
+  if(input === '/logout'){
+   await logoutCommand();
     return true;
   }
 

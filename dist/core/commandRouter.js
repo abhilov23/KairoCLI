@@ -1,9 +1,22 @@
 import { registry } from "../tools/registry.js";
 import { printInteractiveHelp } from "./cliCommands.js";
-export function handleInternalCommand(input, messages) {
+import { loginCommand, whoamiCommand, logoutCommand } from "./login.js";
+export async function handleInternalCommand(input, messages) {
     // HELP
     if (input === "/help") {
         printInteractiveHelp();
+        return true;
+    }
+    if (input === '/login') {
+        await loginCommand();
+        return true;
+    }
+    if (input === '/whoami') {
+        await whoamiCommand();
+        return true;
+    }
+    if (input === '/logout') {
+        await logoutCommand();
         return true;
     }
     // TOOLS

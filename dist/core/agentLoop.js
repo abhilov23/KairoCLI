@@ -3,8 +3,25 @@ import { streamResponse } from "./streamHandler.js";
 import { executeToolCalls } from "./toolExecutor.js";
 import { handleInternalCommand } from "./commandRouter.js";
 import systemPrompt from "../prompt/prompt.js";
+import { loadAuthSession } from "../config/authManager.js";
+import { syncSession } from "./syncSessions.js";
 import { getUserInput, printBanner, printSuccess, } from "../ui/ui.js";
 import { loadSessionMessages, loadSessionState, saveSessionMessages, } from "../runtime/sessionManager.js";
+// ─── Auth context injection ──────────────────────────────────────
+async function enrichPromptWithAuth(basePrompt) {
+    const authSession = await loadAuthSession();
+    if (!authSession?.userProfile)
+        return basePrompt;
+    const profile = authSession.userProfile;
+    const name = profile.name || profile.displayName || profile.username || "";
+    const email = profile.email || "";
+    if (!name && !email)
+        return basePrompt;
+    return (basePrompt +
+        `\n\nAuthentication Context:\n` +
+        `- User: ${name || "Unknown"}${email ? ` (${email})` : ""}\n` +
+        `- Authenticated since: ${new Date(authSession.createdAt).toLocaleString()}\n`);
+}
 // ─── Shared agent loop ───────────────────────────────────────────
 async function agentLoop(client, model, messages, safetyCheck) {
     while (true) {
@@ -24,7 +41,8 @@ async function agentLoop(client, model, messages, safetyCheck) {
 // ─── Interactive session ─────────────────────────────────────────
 export async function startAgent() {
     const { client, model } = getClient();
-    const messages = [{ role: "system", content: systemPrompt }];
+    const enrichedPrompt = await enrichPromptWithAuth(systemPrompt);
+    const messages = [{ role: "system", content: enrichedPrompt }];
     const session = await loadSessionState();
     const restoredMessages = await loadSessionMessages();
     if (restoredMessages.length) {
@@ -44,10 +62,21 @@ export async function startAgent() {
                 execution: { turnCount, lastToolName, lastError: null, lastUpdatedAt: new Date().toISOString() },
                 workspace: { cwd: process.cwd(), lastUpdatedAt: new Date().toISOString() },
             });
+            // Push session data to website for dashboard
+            const config = getClient();
+            const firstUserMsg = messages.find((m) => m.role === "user");
+            const title = firstUserMsg?.content?.substring(0, 80) || "Kairo Session";
+            await syncSession({
+                provider: config.provider,
+                model: config.model,
+                tokenCount: 0,
+                title,
+                workspace: process.cwd(),
+            }, 5_000);
             break;
         }
         if (userInput.startsWith("/") || userInput === "clear" || userInput === "cls") {
-            handleInternalCommand(userInput.trim(), messages);
+            await handleInternalCommand(userInput.trim(), messages);
             if (userInput === "/clear")
                 messages.length = 1;
             continue;
@@ -64,8 +93,9 @@ export async function startAgent() {
 // ─── Single-task (non‑interactive) mode ──────────────────────────
 export async function runTask(task) {
     const { client, model } = getClient();
+    const enrichedPrompt = await enrichPromptWithAuth(systemPrompt);
     const messages = [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: enrichedPrompt },
         { role: "user", content: task },
     ];
     await agentLoop(client, model, messages);

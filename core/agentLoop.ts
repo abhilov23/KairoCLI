@@ -4,6 +4,8 @@ import { executeToolCalls } from "./toolExecutor.js";
 import { ToolCallResult } from "./types.js";
 import { handleInternalCommand } from "./commandRouter.js";
 import systemPrompt from "../prompt/prompt.js";
+import { loadAuthSession } from "../config/authManager.js";
+import { syncSession } from "./syncSessions.js";
 import {
   getUserInput,
   printBanner,
@@ -14,6 +16,26 @@ import {
   loadSessionState,
   saveSessionMessages,
 } from "../runtime/sessionManager.js";
+
+// ─── Auth context injection ──────────────────────────────────────
+
+async function enrichPromptWithAuth(basePrompt: string): Promise<string> {
+  const authSession = await loadAuthSession();
+  if (!authSession?.userProfile) return basePrompt;
+
+  const profile = authSession.userProfile as Record<string, unknown>;
+  const name = profile.name || profile.displayName || profile.username || "";
+  const email = profile.email || "";
+
+  if (!name && !email) return basePrompt;
+
+  return (
+    basePrompt +
+    `\n\nAuthentication Context:\n` +
+    `- User: ${name || "Unknown"}${email ? ` (${email})` : ""}\n` +
+    `- Authenticated since: ${new Date(authSession.createdAt).toLocaleString()}\n`
+  );
+}
 
 // ─── Shared agent loop ───────────────────────────────────────────
 
@@ -45,7 +67,9 @@ async function agentLoop(
 
 export async function startAgent() {
   const { client, model } = getClient();
-  const messages: any[] = [{ role: "system", content: systemPrompt }];
+
+  const enrichedPrompt = await enrichPromptWithAuth(systemPrompt);
+  const messages: any[] = [{ role: "system", content: enrichedPrompt }];
 
   const session = await loadSessionState();
   const restoredMessages = await loadSessionMessages();
@@ -71,11 +95,24 @@ export async function startAgent() {
         execution: { turnCount, lastToolName, lastError: null, lastUpdatedAt: new Date().toISOString() },
         workspace: { cwd: process.cwd(), lastUpdatedAt: new Date().toISOString() },
       });
+
+      // Push session data to website for dashboard
+      const config = getClient();
+      const firstUserMsg = messages.find((m: any) => m.role === "user");
+      const title = firstUserMsg?.content?.substring(0, 80) || "Kairo Session";
+      await syncSession({
+        provider: config.provider,
+        model: config.model,
+        tokenCount: 0,
+        title,
+        workspace: process.cwd(),
+      }, 5_000);
+
       break;
     }
 
     if (userInput.startsWith("/") || userInput === "clear" || userInput === "cls") {
-      handleInternalCommand(userInput.trim(), messages);
+      await handleInternalCommand(userInput.trim(), messages);
       if (userInput === "/clear") messages.length = 1;
       continue;
     }
@@ -96,8 +133,9 @@ export async function startAgent() {
 
 export async function runTask(task: string) {
   const { client, model } = getClient();
+  const enrichedPrompt = await enrichPromptWithAuth(systemPrompt);
   const messages: any[] = [
-    { role: "system", content: systemPrompt },
+    { role: "system", content: enrichedPrompt },
     { role: "user", content: task },
   ];
 

@@ -24,6 +24,9 @@ export function printInteractiveHelp() {
 Interactive Commands:
   /help     Show this help
   /tools    Show available tools
+  /login    Login to your account 
+  /logout   Clear cached auth session
+  /whoami   Show current auth session info
   /clear    Clear chat memory
   clear     Clear terminal screen
   cls       Clear terminal screen

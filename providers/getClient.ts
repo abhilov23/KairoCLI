@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { loadConfig } from "../config/configManager.js";
 import { PROVIDER_MAP } from "./providerMap.js";
 
-export function getClient(): { client: OpenAI; model: string } {
+export function getClient(): { client: OpenAI; model: string; provider: string } {
   const config = loadConfig();
   const provider = PROVIDER_MAP[config.provider];
 
@@ -23,5 +23,5 @@ export function getClient(): { client: OpenAI; model: string } {
   }
 
   const client = new OpenAI({ apiKey, baseURL });
-  return { client, model };
+  return { client, model, provider: config.provider };
 }
