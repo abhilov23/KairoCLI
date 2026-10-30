@@ -1,6 +1,4 @@
-# KairoCLI
-
-A terminal-native AI coding assistant built with TypeScript and the OpenAI SDK.
+<img width="2800" height="560" alt="kairocli-hero-banner" src="https://github.com/user-attachments/assets/b1ba6e49-d0ec-45a5-ab80-9cc4c71e9078" />
 
 KairoCLI runs as an interactive CLI agent with tool-calling capabilities — reading/writing files, executing commands, searching code, and managing git workflows — all from your terminal.
 
