@@ -11,6 +11,7 @@ export type AuthSession = {
   userProfile?: unknown;
   deviceCode?: string;
   createdAt: string;
+  loginSessionId?: string;
 };
 
 export function getAuthFile(): string {

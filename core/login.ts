@@ -5,6 +5,8 @@ import { syncSession } from "./syncSessions.js";
 
 const LOCALHOST_API = "http://localhost:3000/api/auth/device";
 const TOKEN_API = "http://localhost:3000/api/auth/device/token";
+const AUTH_WEBSITE="http://localhost:3000/";
+
 
 type DeviceInitResponse = {
   device_code: string;
@@ -99,18 +101,25 @@ async function handleCliTokenPoll(
       );
       printUserProfile(data.user_profile);
 
-      // Push a login session to the website dashboard
-      syncSession({
+      // Push a login session to the website dashboard and store its ID
+      const sessionId = await syncSession({
         provider: "cli-login",
         model: "N/A",
         tokenCount: 0,
         title: `Kairo CLI Login — ${deviceCode.substring(0, 12)}...`,
         workspace: process.cwd(),
-      }).then((synced) => {
-        if (synced) {
-          console.log("  \x1b[2m✓ Session synced to dashboard.\x1b[0m");
-        }
       });
+      if (sessionId) {
+        console.log("  \x1b[2m✓ Session synced to dashboard.\x1b[0m");
+        await saveAuthSession({
+          accessToken: data.access_token,
+          jwtToken: data.jwt_token,
+          userProfile: data.user_profile,
+          deviceCode,
+          createdAt: new Date().toISOString(),
+          loginSessionId: sessionId,
+        });
+      }
 
       return;
     }
@@ -180,6 +189,32 @@ export async function logoutCommand() {
   if (!session) {
     console.log("\n🔓 \x1b[33mYou're not logged in.\x1b[0m Nothing to clear.\n");
     return;
+  }
+
+  // Delete login sessions from DB first, then revoke the token
+  // (token must still be valid for the sessions request)
+  const token = session.jwtToken ?? session.accessToken;
+  if (token) {
+    try {
+      const url = session.loginSessionId
+        ? `${AUTH_WEBSITE}api/sessions?id=${session.loginSessionId}`
+        : `${AUTH_WEBSITE}api/sessions`;
+      await fetch(url, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {
+      // Network failure — still clear locally
+    }
+
+    try {
+      await fetch(`${AUTH_WEBSITE}api/auth/cli-session`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {
+      // Network failure — still clear locally
+    }
   }
 
   const cleared = await clearAuthSession();

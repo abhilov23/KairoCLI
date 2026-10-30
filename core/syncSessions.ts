@@ -12,10 +12,10 @@ export type SyncSessionData = {
   workspace?: string;
 };
 
-export async function syncSession(data: SyncSessionData, timeoutMs?: number): Promise<boolean> {
+export async function syncSession(data: SyncSessionData, timeoutMs?: number): Promise<string | null> {
   const authSession = await loadAuthSession();
   if (!authSession?.jwtToken) {
-    return false; // Not authenticated for API calls
+    return null; // Not authenticated for API calls
   }
 
   const controller = new AbortController();
@@ -44,13 +44,14 @@ export async function syncSession(data: SyncSessionData, timeoutMs?: number): Pr
       console.warn(
         `⚠️  Failed to sync session: ${response.status}${body.error ? ` — ${body.error}` : ""}`,
       );
-      return false;
+      return null;
     }
 
-    return true;
+    const session = await response.json() as { id: string };
+    return session.id;
   } catch {
     // Network error or timeout — silently skip, not critical
-    return false;
+    return null;
   } finally {
     clearTimeout(timeout);
   }

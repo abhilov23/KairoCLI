@@ -183,6 +183,13 @@ describe("loginCommand", () => {
               user_profile: { name: "Test User", email: "test@example.com" },
             }),
         }),
+      )
+      .mockImplementationOnce(() =>
+        Promise.resolve({
+          ok: true,
+          status: 201,
+          json: () => Promise.resolve({ id: "session-id-123" }),
+        }),
       );
 
     vi.stubGlobal("fetch", mockFetch);
@@ -200,6 +207,7 @@ describe("loginCommand", () => {
     // Drain microtasks first so sleep gets queued, then fire the timer
     await vi.advanceTimersByTimeAsync(0);
     await vi.advanceTimersByTimeAsync(5_000);
+    await vi.advanceTimersByTimeAsync(0);
     await loginPromise;
 
     const output = logs.join(" ");
